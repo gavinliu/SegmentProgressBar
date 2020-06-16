@@ -10,7 +10,15 @@
         android:id="@+id/segment"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp" />
+        android:layout_margin="16dp"
+        app:spbBgBarHeight="16dp"
+        app:spbBgCircleRadius="16dp"
+        app:spbBgColor="#f5f5f6"
+        app:spbFlagIcon="@drawable/ic_launcher_foreground"
+        app:spbFlagIconPadding="5dp"
+        app:spbSegmentBarBgColor="#e7e9eb"
+        app:spbSegmentBarHeight="10dp"
+        app:spbSegmentBarSpacing="2dp" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -21,7 +29,7 @@
             android:id="@+id/btn_plus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Progress Plus"
+            android:text="Progress +++"
             app:layout_constraintBottom_toTopOf="@id/btn_minus"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
@@ -30,7 +38,7 @@
             android:id="@+id/btn_minus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Progress Minus"
+            android:text="Progress ---"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <declare-styleable name="SegmentProgressBar">
+        <attr name="spbBgBarHeight" format="dimension" />
+        <attr name="spbBgCircleRadius" format="dimension" />
+        <attr name="spbBgColor" format="color" />
+
+        <attr name="spbFlagIcon" format="reference" />
+        <attr name="spbFlagIconPadding" format="dimension" />
+
+        <attr name="spbSegmentBarHeight" format="dimension" />
+        <attr name="spbSegmentBarSpacing" format="dimension" />
+        <attr name="spbSegmentBarBgColor" format="color" />
+    </declare-styleable>
+
+</resources>

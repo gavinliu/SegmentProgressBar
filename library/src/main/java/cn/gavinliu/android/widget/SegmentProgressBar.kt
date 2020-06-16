@@ -1,9 +1,13 @@
 package cn.gavinliu.android.widget
 
+import android.animation.Animator
+import android.animation.ObjectAnimator
 import android.content.Context
 import android.graphics.*
+import android.graphics.drawable.Drawable
 import android.util.AttributeSet
 import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
 
 
 /**
@@ -13,57 +17,122 @@ import android.view.View
  */
 class SegmentProgressBar : View {
 
-    constructor(context: Context?) : super(context)
-    constructor(context: Context?, attrs: AttributeSet?) : super(context, attrs)
+    constructor(context: Context?) : super(context) {
+        init(context)
+    }
+
+    constructor(context: Context?, attrs: AttributeSet?) : super(context, attrs) {
+        init(context, attrs)
+    }
+
     constructor(context: Context?, attrs: AttributeSet?, defStyleAttr: Int) : super(
         context,
         attrs,
         defStyleAttr
-    )
+    ) {
+        init(context, attrs, defStyleAttr)
+    }
 
     private val paint: Paint = Paint().apply {
         isAntiAlias = true
     }
 
-    private val minHeight: Int = 32 * 3
-
     private var middleHeight: Float = 0F
-    private var centerX: Float = 0F
-    private var centerY: Float = 0F
-    private var radius: Float = minHeight / 2F
 
-    private var middleBarHeight: Float = 14 * 3F
-    private var middleBarRect: RectF = RectF()
+    private var bgCircleCenterX: Float = 0F
+    private var bgCircleCenterY: Float = 0F
+    private var bgCircleRadius: Float = 0F
 
-    private var segmentBarHeight: Float = 10 * 3F
-    private var segmentBarSpacing = 2 * 3F
+    private var bgColor: Int = 0
 
-    private var maxProgress = 0
-    private var currentProgress = 0
+    private var bgBarHeight: Float = 0F
+    private var bgBarRect: RectF = RectF()
 
-    private var bars: ArrayList<Bar> = ArrayList()
+    private var segmentBarHeight: Float = 0F
+    private var segmentBarSpacing: Float = 0F
+    private var segmentBarBgColor: Int = 0
 
-    init {
-        minimumHeight = minHeight
+    private var maxProgress: Float = 0F
+    private var currentProgress: Float = 0F
+    private var progressValue: Float = 0F
+        set(value) {
+            field = value
+            updateProgress()
+        }
+
+    private var animator: Animator? = null
+
+    private var bars: ArrayList<SegmentBar> = ArrayList()
+
+    private var flagDrawable: Drawable? = null
+    private var flagDrawablePadding = 0
+
+    private fun init(
+        context: Context? = null,
+        attrs: AttributeSet? = null,
+        defStyleAttr: Int = 0
+    ) {
+        attrs?.let {
+            context?.obtainStyledAttributes(attrs, R.styleable.SegmentProgressBar)
+                ?.also { typeArray ->
+
+                    typeArray.getResourceId(R.styleable.SegmentProgressBar_spbFlagIcon, 0).let {
+                        flagDrawable = context.getDrawable(it)
+                    }
+                    flagDrawablePadding = typeArray.getDimensionPixelSize(
+                        R.styleable.SegmentProgressBar_spbFlagIconPadding,
+                        0
+                    )
+
+                    segmentBarHeight = typeArray.getDimensionPixelSize(
+                        R.styleable.SegmentProgressBar_spbSegmentBarHeight,
+                        0
+                    ).toFloat()
+                    segmentBarSpacing = typeArray.getDimensionPixelSize(
+                        R.styleable.SegmentProgressBar_spbSegmentBarSpacing,
+                        0
+                    ).toFloat()
+
+                    bgBarHeight = typeArray.getDimensionPixelSize(
+                        R.styleable.SegmentProgressBar_spbBgBarHeight,
+                        0
+                    ).toFloat()
+
+                    bgCircleRadius = typeArray.getDimensionPixelSize(
+                        R.styleable.SegmentProgressBar_spbBgCircleRadius,
+                        0
+                    ).toFloat()
+
+                    bgColor = typeArray.getColor(R.styleable.SegmentProgressBar_spbBgColor, 0)
+                    segmentBarBgColor =
+                        typeArray.getColor(R.styleable.SegmentProgressBar_spbSegmentBarBgColor, 0)
+
+                    minimumHeight = (bgCircleRadius * 2).toInt()
+                }?.recycle()
+        }
+
     }
 
     /**
      *
      * @param data
      */
-    fun setData(data: List<Int>) {
+    fun setData(data: List<Segment>) {
         bars.clear()
-        maxProgress = 0
-        data.forEachIndexed { index, value ->
+        maxProgress = 0F
+        data.forEachIndexed { index, segment ->
+
             bars.add(
-                Bar(
-                    index,
-                    data.size,
-                    maxProgress,
-                    value
+                SegmentBar(
+                    index = index,
+                    size = data.size,
+                    start = maxProgress,
+                    value = segment.progress.toFloat(),
+                    bgColor = segmentBarBgColor,
+                    currentColor = segment.color
                 )
             )
-            maxProgress += value
+            maxProgress += segment.progress
         }
         requestLayout()
     }
@@ -72,7 +141,7 @@ class SegmentProgressBar : View {
      *
      */
     fun progress(progress: Int) {
-        currentProgress = progress
+        currentProgress = progress.toFloat()
         updateProgress()
     }
 
@@ -80,16 +149,32 @@ class SegmentProgressBar : View {
      *
      */
     fun progressPlus() {
+        val current = currentProgress
         currentProgress++
-        updateProgress()
+        checkCurrentProgress()
+        startAnim(current, currentProgress)
     }
+
 
     /**
      *
      */
     fun progressMinus() {
+        val current = currentProgress
         currentProgress--
-        updateProgress()
+        checkCurrentProgress()
+        startAnim(current, currentProgress)
+    }
+
+    private fun startAnim(start: Float, end: Float) {
+        if (animator?.isRunning == true) {
+            animator?.cancel()
+        }
+        animator = ObjectAnimator.ofFloat(this, "progressValue", start, end).also {
+            it.duration = 250
+            it.interpolator = AccelerateDecelerateInterpolator()
+            it.start()
+        }
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -99,16 +184,23 @@ class SegmentProgressBar : View {
 
         middleHeight = defaultHeight / 2F
 
-        centerX = defaultWidth - radius
-        centerY = middleHeight
+        bgCircleCenterX = defaultWidth - bgCircleRadius
+        bgCircleCenterY = middleHeight
 
-        middleBarRect.left = 0F
-        middleBarRect.top = middleHeight - middleBarHeight / 2F
-        middleBarRect.right = middleBarRect.left + defaultWidth
-        middleBarRect.bottom = middleBarRect.top + middleBarHeight
+        flagDrawable?.setBounds(
+            (bgCircleCenterX - (bgCircleRadius - flagDrawablePadding)).toInt(),
+            (bgCircleCenterY - (bgCircleRadius - flagDrawablePadding)).toInt(),
+            (bgCircleCenterX + (bgCircleRadius - flagDrawablePadding)).toInt(),
+            (bgCircleCenterY + (bgCircleRadius - flagDrawablePadding)).toInt()
+        )
+
+        bgBarRect.left = 0F
+        bgBarRect.top = middleHeight - bgBarHeight / 2F
+        bgBarRect.right = bgBarRect.left + defaultWidth
+        bgBarRect.bottom = bgBarRect.top + bgBarHeight
 
         val barMaxWidth =
-            defaultWidth - segmentBarSpacing * 2 - radius * 2 - segmentBarSpacing * (bars.size - 1)
+            defaultWidth - segmentBarSpacing * 2 - bgCircleRadius * 2 - segmentBarSpacing * (bars.size - 1)
 
         var currentRight = 0F
 
@@ -119,7 +211,6 @@ class SegmentProgressBar : View {
             bar.rect.top = middleHeight - segmentBarHeight / 2F
             bar.rect.right = bar.rect.left + barWith
             bar.rect.bottom = bar.rect.top + segmentBarHeight
-            println(bar.rect)
 
             currentRight = bar.rect.right
 
@@ -128,15 +219,21 @@ class SegmentProgressBar : View {
 
     }
 
-
     override fun onDraw(canvas: Canvas?) {
         super.onDraw(canvas)
 
-        paint.color = Color.parseColor("#84b0ff")
-        canvas?.drawCircle(centerX, centerY, radius, paint)
-        canvas?.drawRoundRect(middleBarRect, middleBarHeight, middleBarHeight, paint)
+        canvas?.let {
+            // Draw BG
+            paint.color = bgColor
+            canvas.drawCircle(bgCircleCenterX, bgCircleCenterY, bgCircleRadius, paint)
+            canvas.drawRoundRect(bgBarRect, bgBarHeight, bgBarHeight, paint)
 
-        bars.forEach { it.onDraw(canvas, paint) }
+            // Draw Flag
+            flagDrawable?.draw(canvas)
+
+            // Draw Bars
+            bars.forEach { it.onDraw(canvas, paint) }
+        }
     }
 
     private fun getMeasureSize(size: Int, measureSpec: Int): Int {
@@ -152,22 +249,28 @@ class SegmentProgressBar : View {
         return result
     }
 
-    private fun updateProgress() {
-        if (currentProgress < 0) currentProgress = 0
-        if (currentProgress > maxProgress) currentProgress = maxProgress
+    private fun checkCurrentProgress() {
+        if (currentProgress < 0) {
+            currentProgress = 0F
+        }
+        if (currentProgress > maxProgress) {
+            currentProgress = maxProgress
+        }
+    }
 
+    private fun updateProgress() {
         for (bar in bars) {
             when {
-                bar.contains(currentProgress) -> {
-                    bar.current = currentProgress - bar.start
+                bar.contains(progressValue) -> {
+                    bar.current = progressValue - bar.start
                 }
 
-                currentProgress >= bar.start + bar.value -> {
+                progressValue >= bar.start + bar.value -> {
                     bar.current = bar.value
                 }
 
                 else -> {
-                    bar.current = 0
+                    bar.current = 0F
                 }
             }
 
@@ -177,12 +280,17 @@ class SegmentProgressBar : View {
         postInvalidate()
     }
 
-    class Bar(
+
+    data class Segment(val progress: Int, val color: Int)
+
+    private class SegmentBar(
         private val index: Int,
         private val size: Int,
-        val start: Int,
-        val value: Int,
-        var current: Int = 0,
+        val start: Float,
+        val value: Float,
+        val bgColor: Int,
+        val currentColor: Int,
+        var current: Float = 0F,
         val rect: RectF = RectF()
     ) {
 
@@ -196,7 +304,7 @@ class SegmentProgressBar : View {
 
         private fun isLast(): Boolean = index == size - 1
 
-        fun contains(progress: Int): Boolean = progress >= start && progress <= start + value
+        fun contains(progress: Float): Boolean = progress >= start && progress <= start + value
 
         fun onMeasure() {
             path.reset()
@@ -271,10 +379,10 @@ class SegmentProgressBar : View {
         }
 
         fun onDraw(canvas: Canvas?, paint: Paint) {
-            paint.color = Color.parseColor("#e7e9eb")
+            paint.color = bgColor
             canvas?.drawPath(path, paint)
 
-            paint.color = Color.parseColor("#ffcb3b")
+            paint.color = currentColor
             canvas?.drawPath(currentPath, paint)
         }
 
